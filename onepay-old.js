@@ -1,95 +1,86 @@
 const PubNub = require("pubnub");
+const { SubscribeKey } = process.env;
+console.log("SubscribeKey", SubscribeKey);
+function OnePay(mcid) {
+  this.mcid = mcid;
+  this.tid = null;
+  this.shopcode = null;
+  this.uuid = null;
+  this.lastToken = new Date().getTime() - 30 * 60 * 1000 + "0000";
+  this.debug = false;
+  this.onpaid = null;
+  this.qrcode = null;
+  this.pubnub = null;
 
-class OnePay {
-  constructor(config) {
+  this.mcc = null;
+  this.ccy = 418;
+  this.province = "LA";
+  this.country = "VTE";
 
-    this.mcid = config.mcid;
-    this.subKey = config.subKey;
-    this.userId = "BCELBANK";
-    this.tid = null;
-    this.shopcode = null;
-    this.uuid = null;
-    this.lastToken = new Date().getTime() - 30 * 60 * 1000 + "0000";
-    this.debug = false;
-    this.onpaid = null;
-    this.qrcode = null;
-    this.pubnub = null;
-    // this.subLevel = null;
-
-    this.mcc = null;
-    this.ccy = 418;
-    this.province = 'LA';
-    this.country = 'VTE';
-  }
-
-  pubnubSubscribe() {
-    let channel = `uuid-${this.mcid}-${this.uuid}`;
-    // this.subLevel = 'transaction';
-    if (this.shopcode) {
-      channel = `mcid-${this.mcid}-${this.shopcode}`
-      // this.subLevel = 'merchant';
-      if (this.tid) {
-        channel = `tid-${this.mcid}-${this.shopcode}-${this.tid}`;
-        // this.subLevel = 'terminal';
-      }
+  this.pubnubSubscribe = function () {
+    var channel = this.shopcode
+      ? "mcid-" + this.mcid + "-" + this.shopcode
+      : "uuid-" + this.mcid + "-" + this.uuid;
+    if (this.tid && this.shopcode) {
+      channel = "tid-" + this.mcid + "-" + this.shopcode + "-" + this.tid;
     }
     this.pubnub.subscribe({
       channels: [channel],
       timetoken: this.lastToken,
-      uuid: this.userId
+      uuid: "BCELBANK",
     });
-  }
+  };
 
-  paymentCallback(res) {
+  this.paymentCallback = function (res) {
     if (this.onpaid) this.onpaid(res);
-    // this.onpaid = null; // Stop receiving additional callback
-    // if (['transaction'].includes(this.subLevel))this.pubnub.stop();
-  }
-
-  stop() {
+    this.onpaid = null; // Stop receiving additional callback
     this.pubnub.stop();
-  }
+  };
 
-  subscribe(params, onpaid) {
+  this.stop = function () {
+    this.pubnub.stop();
+  };
+
+  this.subscribe = function (params, onpaid) {
     if (this.debug) console.log("subscribe parameters:", params);
 
-    if (this.onpaid != null) {
+    if (this.onpaid != null)
       throw "You have already subscribed. Please wait until payment is completed to subscribe again, or create a new OnePay object.";
-    }
 
     this.uuid = params.uuid;
-    this.tid = params.tid || null;
-    this.shopcode = params.shopcode || null;
+    this.tid = params.tid ? params.tid : null;
+    this.shopcode = params.shopcode ? params.shopcode : null;
     this.onpaid = onpaid;
 
     this.pubnub = new PubNub({
-      subscribeKey: this.subKey,
-      userId: this.userId,
-      ssl: true
+      subscribeKey: SubscribeKey,
+      userId: "BCELBANK",
+      ssl: true,
     });
 
     this.pubnub.addListener({
-      status: (statusEvent) => {
+      status: function (statusEvent) {
         if (this.debug) console.log("PubNub status changed", statusEvent);
 
         if (statusEvent.category === "PNNetworkUpCategory")
           this.pubnubSubscribe();
-      },
-      message: (msg) => {
+      }.bind(this),
+      message: function (msg) {
         if (this.debug) console.log("Callback received", msg);
-        const callback = JSON.parse(msg.message);
+        var callback = JSON.parse(msg.message);
+        console.table({ ...callback });
         this.paymentCallback(callback);
-      }
+      }.bind(this),
     });
 
     this.pubnubSubscribe();
-  }
+  };
 
-  payCode(res) {
+  this.payCode = function (res) {
     if (this.qrcode) this.qrcode(res);
-  }
+  };
 
-  getCode(params, qrcode) {
+  this.getCode = function (params, qrcode) {
     if (this.debug) console.log("get code parameters:", params);
 
     this.qrcode = qrcode;
@@ -98,74 +89,81 @@ class OnePay {
     if (params.country) this.country = params.country;
     if (params.province) this.province = params.province;
     if (params.expiretime) this.expiretime = params.expiretime;
+    var transactionid = params.transactionid;
+    var invoiceid = params.invoiceid;
+    var terminalid = params.terminalid;
+    var amount = params.amount;
+    var description = params.description;
 
-    const {transactionid, invoiceid, terminalid, amount, description} = params;
-    console.table({transactionid, invoiceid, terminalid, amount, description})
-
-    const field33 = [
+    var $field33 = [
       ["00", "BCEL"],
       ["01", "ONEPAY"],
-      ["02", this.mcid]
+      ["02", this.mcid],
     ];
+    if (params.expiretime)
+      $field33.push(["03", getExpiredTime(this.expiretime)]); // expired time
+    $field33.push(["05", "CLOSEWHENDONE"]); // close when paid success
 
-    if (params.expiretime) {
-      field33.push(['03', this.getExpiredTime(this.expiretime)]);
-    }
-
-    const rawqr = this.buildqr([
+    var rawqr = buildqr([
       ["00", "01"],
       ["01", "11"],
-      ["33", this.buildqr(field33)],
+      ["33", buildqr($field33)],
       ["52", this.mcc],
       ["53", this.ccy],
       ["54", amount],
       ["58", this.country],
       ["60", this.province],
-      ["62", this.buildqr([
-        ["01", invoiceid],
-        ["05", transactionid],
-        ["07", terminalid],
-        ["08", description]
-      ])]
+      [
+        "62",
+        buildqr([
+          ["01", invoiceid],
+          ["05", transactionid],
+          ["07", terminalid],
+          ["08", description],
+        ]),
+      ],
     ]);
 
-    const fullqr = rawqr + this.buildqr([["63", this.crc16(rawqr + "6304")]]);
+    var fullqr = rawqr + buildqr([["63", crc16(rawqr + "6304")]]); // Adding itself into checksum
     this.payCode(fullqr);
-  }
+  };
 
-  getExpiredTime(expiretime) {
-    const dateTime = new Date();
+  function getExpiredTime(expiretime) {
+    var dateTime = new Date();
     dateTime.setMinutes(dateTime.getMinutes() + expiretime);
 
-    const expiredTime = dateTime.getFullYear().toString()
-      + this.padLeft((dateTime.getMonth() + 1))
-      + this.padLeft(dateTime.getDate())
-      + this.padLeft(dateTime.getHours())
-      + this.padLeft(dateTime.getMinutes())
-      + this.padLeft(dateTime.getSeconds());
+    var expiredTime =
+      dateTime.getFullYear().toString() +
+      padLeft(dateTime.getMonth() + 1) +
+      padLeft(dateTime.getDate()) +
+      padLeft(dateTime.getHours()) +
+      padLeft(dateTime.getMinutes()) +
+      padLeft(dateTime.getSeconds());
 
-    if (this.debug) console.log("TIME", expiredTime);
+    console.log("TIME", expiredTime);
     return expiredTime;
   }
 
-  padLeft(val) {
+  function padLeft(val) {
     return val >= 10 ? val : "0" + val;
   }
 
-  buildqr(arr) {
-    return arr.reduce((res, [key, val]) => {
-      if (!val) return res;
-      return res + this.pad2(key) + this.pad2((val + "").length) + val;
-    }, "");
+  function buildqr(arr) {
+    var res = "";
+    for (var i in arr) {
+      var key = arr[i][0];
+      var val = arr[i][1];
+      if (!val) continue;
+      res += pad2(key) + pad2((val + "").length) + val;
+    }
+    return res;
   }
 
-  pad2(data) {
+  function pad2(data) {
     return ("0" + (data + "")).substr(-2);
   }
-  
-  crc16(s) {
-    let crc = 0xFFFF;
-    const crcTable = [
+
+  var crcTable = [
     0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50a5, 0x60c6, 0x70e7, 0x8108,
     0x9129, 0xa14a, 0xb16b, 0xc18c, 0xd1ad, 0xe1ce, 0xf1ef, 0x1231, 0x0210,
     0x3273, 0x2252, 0x52b5, 0x4294, 0x72f7, 0x62d6, 0x9339, 0x8318, 0xb37b,
@@ -197,18 +195,21 @@ class OnePay {
     0x2e93, 0x3eb2, 0x0ed1, 0x1ef0,
   ];
 
-    for (let i = 0; i < s.length; i++) {
-      const c = s.charCodeAt(i);
+  function crc16(s) {
+    var crc = 0xffff;
+    var j, i;
+
+    for (i = 0; i < s.length; i++) {
+      c = s.charCodeAt(i);
       if (c > 255) {
         throw new RangeError();
       }
-      const j = (c ^ (crc >> 8)) & 0xFF;
+      j = (c ^ (crc >> 8)) & 0xff;
       crc = crcTable[j] ^ (crc << 8);
     }
 
-    return ((crc ^ 0) & 0xFFFF).toString(16).toUpperCase();
+    return ((crc ^ 0) & 0xffff).toString(16).toUpperCase();
   }
 }
-
 
 module.exports = { OnePay };
