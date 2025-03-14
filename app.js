@@ -64,7 +64,7 @@ app.post("/genQr", async (req, res) => {
       transactionid: `${lotteryDate}_${invoiceId}`, // please define as unique key
       invoiceid: billId, // a invoice ID can pay many times OR have many transaction ID
       // terminalid: "001", // terminal ID (in case have many terminals, POS devices or etc...)
-      amount: 1, // invoice amount
+      amount: amount, // invoice amount
       // amount: amount, // invoice amount
       description: remark, // must define as English text
       expiretime: 30, // expire time must be minutes
@@ -73,7 +73,7 @@ app.post("/genQr", async (req, res) => {
       console.log('uuid', `${lotteryDate}_${invoiceId}_buyLottery`)
       console.log("code", code);
       res.json({
-        uuid: `${lotteryDate}_${invoiceId}`,
+        uuid: `${lotteryDate}_${invoiceId}_buyLottery`,
         qr:
           "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" +
           code,
