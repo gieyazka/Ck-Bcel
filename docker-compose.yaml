@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  bcel_service:
+    image: pokkate/ck-bcel
+    # build: .
+    pull_policy: always
+    env_file:
+      - .env
+    ports:
+      - "3001"
+    networks:
+      - ck_backend
+  
+networks:
+  ck_backend:
+    name: ck_backend
+    driver: bridge
