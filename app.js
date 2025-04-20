@@ -4,7 +4,8 @@ require("dotenv").config();
 const { OnePay } = require("./onepay");
 const { OnePay: OnePayOld } = require("./onepay-old");
 const { SubscribeKey } = process.env;
-
+const dayjs = require("dayjs");
+const axios = require("axios");
 const app = express();
 const port = 3001;
 const jwt = require("jsonwebtoken");
@@ -29,7 +30,6 @@ app.use((req, res, next) => {
     return res.status(403).send("No token provided");
   }
   const token = bearerToken.split(" ")[1];
-  console.log("token", token);
   jwt.verify(
     token,
     SERECT_KEY,
@@ -48,9 +48,8 @@ app.use((req, res, next) => {
 });
 
 app.post("/genQr", async (req, res) => {
-  console.log("45", 45);
   const data = req.body;
-  const { amount, remark, billId } = data;
+  const { amount, remark,billId  ,drawId} = data;
   const { invoiceId, lotteryDate } = req.data;
   const onePay = new OnePay({
     mcid: MCID,
@@ -58,21 +57,20 @@ app.post("/genQr", async (req, res) => {
   });
 
   onePay.debug = false;
-
+  const  iid = `${lotteryDate}_${invoiceId}_buyLottery`
   onePay.getCode(
     {
-      transactionid: `${lotteryDate}_${invoiceId}`, // please define as unique key
-      invoiceid: billId, // a invoice ID can pay many times OR have many transaction ID
-      // terminalid: "001", // terminal ID (in case have many terminals, POS devices or etc...)
+      uuid: billId, // เปลี่ยนเป็น bill id จาก lotlink
+      invoiceid: iid, // a invoice ID can pay many times OR have many transaction ID
+      terminalid: drawId,// งวด ID
       amount: amount === 0 ? 0 : 1, // invoice amount
       description: remark, // must define as English text
       expiretime: 30, // expire time must be minutes
     },
     function (code) {
-      console.log("uuid", `${lotteryDate}_${invoiceId}_buyLottery`);
       console.log("code", code);
       res.json({
-        uuid: `${lotteryDate}_${invoiceId}_buyLottery`,
+        uuid: billId,
         qr:
           "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" +
           code,
@@ -91,7 +89,6 @@ app.post("/genQr", async (req, res) => {
 });
 
 app.post("/genQrTopup", async (req, res) => {
-  console.log("45", 45);
   const data = req.body;
   const { amount, remark, billId } = data;
   const { invoiceId, lotteryDate } = req.data;
@@ -101,11 +98,12 @@ app.post("/genQrTopup", async (req, res) => {
   });
 
   onePay.debug = false;
-
+  const iid = `${lotteryDate}_${invoiceId}_topup`;
   onePay.getCode(
     {
-      transactionid: `${lotteryDate}_${invoiceId}`, // please define as unique key
-      invoiceid: billId, // a invoice ID can pay many times OR have many transaction ID
+
+      uuid:  billId, // please define as unique key
+      invoiceid: iid, // a invoice ID can pay many times OR have many transaction ID
       // terminalid: "001", // terminal ID (in case have many terminals, POS devices or etc...)
       amount: amount === 0 ? 0 : 1, // invoice amount
       // amount: amount, // invoice amount
@@ -114,7 +112,7 @@ app.post("/genQrTopup", async (req, res) => {
     },
     function (code) {
       res.json({
-        uuid: `${lotteryDate}_${invoiceId}_topup`,
+        uuid: billId,
         qr:
           "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" +
           code,
@@ -132,6 +130,18 @@ app.post("/genQrTopup", async (req, res) => {
   );
 });
 
+
+app.post("/refund", async (req, res) => {
+
+  try {
+    
+  } catch (error) {
+    
+  }
+
+
+})
+
 app.listen(port, () => {
   const onePay = new OnePay({
     mcid: MCID,
@@ -143,13 +153,14 @@ app.listen(port, () => {
 
   onePay.subscribe(subParams, async (res) => {
     console.log("res from pubnub", res);
-    if (res.uuid) {
-      const [lotteryDate, invoiceId, type] = res.uuid.split("_");
+    if (res.iid) {
+      const [lotteryDate, invoiceId, type] = res.iid.split("_");
       if (type === "buyLottery") {
-        const callbackUrl = genCallBackTokenSummary(invoiceId, lotteryDate);
+        const callbackUrl = genCallBackTokenSummary(invoiceId, lotteryDate , res.fccref);
         await axios.get(
           `${process.env.CK_BACKEND}/api/summary?payload=${callbackUrl}`
         );
+
         return;
       } else if (type === "topup") {
         const callbackUrl = genCallBackTopupTokenSummary(invoiceId);
@@ -163,13 +174,16 @@ app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
 });
 
-const genCallBackTokenSummary = (invoiceId, lotteryDate) => {
+
+const genCallBackTokenSummary = (invoiceId, lotteryDate , fccref ) => {
   const expire = dayjs().add(10, "minute");
   const token = jwt.sign(
     {
       invoiceId: invoiceId,
       lotteryDate: lotteryDate,
+      fccref: fccref,
       expire: expire.unix(),
+
     },
     JWT_SECRET,
     {

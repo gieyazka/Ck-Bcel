@@ -99,8 +99,8 @@ class OnePay {
     if (params.province) this.province = params.province;
     if (params.expiretime) this.expiretime = params.expiretime;
 
-    const {transactionid, invoiceid, terminalid, amount, description} = params;
-    console.table({transactionid, invoiceid, terminalid, amount, description})
+    const {uuid, invoiceid, terminalid, amount, description} = params;
+    console.table({uuid, invoiceid, terminalid, amount, description})
 
     const field33 = [
       ["00", "BCEL"],
@@ -123,7 +123,7 @@ class OnePay {
       ["60", this.province],
       ["62", this.buildqr([
         ["01", invoiceid],
-        ["05", transactionid],
+        ["05", uuid],
         ["07", terminalid],
         ["08", description]
       ])]

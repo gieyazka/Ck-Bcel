@@ -6,6 +6,8 @@ services:
     pull_policy: always
     env_file:
       - .env
+    environment:
+      - CK_BACKEND=http://ck-backend:8080
     ports:
       - "3001"
     networks:
