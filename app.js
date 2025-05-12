@@ -133,62 +133,62 @@ app.post("/genQrTopup", async (req, res) => {
 
 
 app.post("/refund", async (req, res) => {
-console.log('136', 136)
-  try {
-    const mcid = process.env.MCID;
-    const refundId = dayjs().format("YYYYMMDDHHmmss");
-    const refundAmount = 0;
-    const uuid  = "25026AH8C3FCUJD2236143916"
-    const privateKey = process.env.BCEL_Private_key;
-
+  console.log('136', 136)
+    try {
+      const mcid = process.env.MCID;
+      const refundId = dayjs().format("YYYYMMDDHHmmss");
+      const refundAmount = 0;
+      const uuid  = "25026AH8C3FCUJD2236143916"
+      const privateKey = process.env.BCEL_Private_key;
   
-    const base64Data = signData(mcid, uuid, refundId, privateKey);
-
-
     
-    console.log("base64Data", base64Data);  
-    // const jsonData = JSON.stringify(data);
-    // const hash = crypto.createHash("sha256");
-    // hash.update(jsonData);
-    // const hashBase64 = hash.digest("base64");
-
-    const data = {
-      mcid: mcid,
-      uuid: uuid,
-      refundid: refundId,
-      refundamount: refundAmount,
-      signature: base64Data,
+      const base64Data = signData(mcid, uuid, refundId, privateKey);
+  
+  
+      
+      console.log("base64Data", base64Data);  
+      // const jsonData = JSON.stringify(data);
+      // const hash = crypto.createHash("sha256");
+      // hash.update(jsonData);
+      // const hashBase64 = hash.digest("base64");
+  
+      const data = {
+        mcid: mcid,
+        uuid: uuid,
+        refundid: refundId,
+        refundamount: refundAmount,
+        signature: base64Data,
+      }
+  
+      const resAxios  = await axios({
+        method  : "POST",
+        url     : "https://bcel.la:8083/onepay/refund.php",
+        headers  : {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        data    : data,
+        validateStatus : ()=> true
+  
+      })
+      console.log('resAxios.data', resAxios.data)
+      res.json({
+        data :base64Data,
+       
+      });
+  
+  
+  
+  //     signature: Sign mcid + uuid + refundid with private key using SHA256withRSA algorithm,
+  // encoded as Base64.
+  
+  
+    } catch (error) {
+      console.log('error', error)
+      res.status(500).json({ error: "Internal server error" , data : error.message });
     }
-
-    const resAxios  = await axios({
-      method  : "POST",
-      url     : "https://bcel.la:8083/onepay/refund.php",
-      headers  : {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      data    : data,
-      validateStatus : ()=> true
-
-    })
-    console.log('resAxios.data', resAxios.data)
-    res.json({
-      data :base64Data,
-     
-    });
-
-
-
-//     signature: Sign mcid + uuid + refundid with private key using SHA256withRSA algorithm,
-// encoded as Base64.
-
-
-  } catch (error) {
-    console.log('error', error)
-    res.status(500).json({ error: "Internal server error" , data : error.message });
-  }
-
-
-})
+  
+  
+  })
 
 app.listen(port, () => {
   const onePay = new OnePay({
