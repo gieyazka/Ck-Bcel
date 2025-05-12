@@ -181,7 +181,7 @@ const genCallBackTokenSummary = (invoiceId, lotteryDate , fccref ) => {
     {
       invoiceId: invoiceId,
       lotteryDate: lotteryDate,
-      fccref: fccref,
+      bankRef: fccref,
       expire: expire.unix(),
 
     },
