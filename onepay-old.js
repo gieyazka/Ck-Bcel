@@ -68,7 +68,7 @@ function OnePay(mcid) {
       message: function (msg) {
         if (this.debug) console.log("Callback received", msg);
         var callback = JSON.parse(msg.message);
-        console.table({ ...callback });
+        // console.table({ ...callback });
         this.paymentCallback(callback);
       }.bind(this),
     });
