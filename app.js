@@ -133,7 +133,6 @@ app.post("/genQrTopup", async (req, res) => {
 
 
 app.post("/refund", async (req, res) => {
-console.log('136', 136)
   try {
     const mcid = process.env.MCID;
     const refundId = dayjs().format("YYYYMMDDHHmmss");
@@ -175,13 +174,6 @@ console.log('136', 136)
       data :base64Data,
      
     });
-
-
-
-//     signature: Sign mcid + uuid + refundid with private key using SHA256withRSA algorithm,
-// encoded as Base64.
-
-
   } catch (error) {
     console.log('error', error)
     res.status(500).json({ error: "Internal server error" , data : error.message });
