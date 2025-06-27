@@ -10,6 +10,7 @@ const app = express();
 const port = 3001;
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
+const { verifyToken } = require("./util");
 const {
   MCID,
   MCC,
@@ -69,14 +70,14 @@ app.post("/genQr", async (req, res) => {
 
   onePay.debug = false;
   const iid = `${lotteryDate}_${invoiceId}_buyLottery`;
-  console.log("billId", billId);
+
   onePay.getCode(
     {
       mcc: MCC,
       uuid: billId, // เปลี่ยนเป็น bill id จาก lotlink
       invoiceid: iid, // a invoice ID can pay many times OR have many transaction ID
       terminalid: drawId, // งวด ID
-      amount: amount === 0 ? 0 : 1, // invoice amount
+      amount: amount === 0 ? 1 : amount, // invoice amount
       description: remark, // must define as English text
       expiretime: 5, // expire time must be minutes
     },
@@ -117,10 +118,10 @@ app.post("/genQrTopup", async (req, res) => {
       uuid: billId, // please define as unique key
       invoiceid: iid, // a invoice ID can pay many times OR have many transaction ID
       // terminalid: "001", // terminal ID (in case have many terminals, POS devices or etc...)
-      amount: amount === 0 ? 0 : 1, // invoice amount
+      amount: amount, // invoice amount
       // amount: amount, // invoice amount
       description: remark, // must define as English text
-      expiretime: 30, // expire time must be minutes
+      expiretime: 5, // expire time must be minutes
     },
     function (code) {
       res.json({
@@ -144,15 +145,19 @@ app.post("/genQrTopup", async (req, res) => {
 
 app.post("/refund", async (req, res) => {
   try {
+    // console.log(req.headers);
+    const bearerToken = req.headers.authorization.split(" ")[1];
+    verifyToken(bearerToken, JWT_SECRET);
+    const body = req.body;
     const mcid = process.env.MCID;
     const refundId = dayjs().format("YYYYMMDDHHmmss");
     const refundAmount = 1;
-    const uuid = "25038FYDNY4KMH61873644735";
+    const uuid = body.uuid;
     const privateKey = process.env.BCEL_Private_key;
     const rawData = mcid + uuid + refundId;
     const base64Data = signDataRaw(rawData, privateKey);
 
-    console.log("base64Data", base64Data);
+    // console.log("base64Data", base64Data);
     // const jsonData = JSON.stringify(data);
     // const hash = crypto.createHash("sha256");
     // hash.update(jsonData);
@@ -165,7 +170,7 @@ app.post("/refund", async (req, res) => {
       refundamount: refundAmount,
       signature: base64Data,
     };
-    console.log(data);
+    // console.log(data);
     const resAxios = await axios({
       method: "POST",
       url: "https://bcel.la:8083/onepay/refund.php",
@@ -175,9 +180,9 @@ app.post("/refund", async (req, res) => {
       data: data,
       validateStatus: () => true,
     });
-    console.log("resAxios.data", resAxios.data);
+    // console.log("resAxios.data", resAxios.data);
     res.json({
-      data: base64Data,
+      data: resAxios.data,
     });
   } catch (error) {
     console.log("error", error);
@@ -229,24 +234,41 @@ app.post("/void", async (req, res) => {
 });
 app.post("/reward", async (req, res) => {
   try {
-    const mcid = process.env.MCID;
-    const refundAmount = 1;
+    const bearerToken = req.headers.authorization.split(" ")[1];
+    verifyToken(bearerToken, JWT_SECRET);
 
+    const body = req.body;
+
+    const response = await axios.post(
+      `${process.env.CK_BACKEND}/api/invoice/`,
+      {
+        invoiceId: body.invoiceId,
+        collectionId: body.collectionId,
+      }
+    );
+    const invoice = response.data.invoice;
+    const user = response.data.user;
+    // TODO: Check is win
+    // if (invoice.is_win === false) {
+    //   return res.status(400).json({ error: "Invoice is not win" });
+    // }
+    const sumWin = invoice.totalWin + (invoice.specialWin ?? 0);
     const privateKey = process.env.BCEL_Private_key;
-
     const data = {
       nonce: new Date().getTime(),
       app: "CK",
       // app: MC_ENG,
       command: "reward",
-      uuid: `25036S9XP4Y3LGC7094711915`,
-      username: "+8562098512548", // เบอร์เก่ากี้
+      uuid: invoice.billNumber,
+      username: user.phone, // เบอร์พี่่หนึ่ง
+      // username: "+8562055265064", // เบอร์พี่่หนึ่ง
+      // username: "+8562098512548", // เบอร์เก่ากี้
+      // amount: sumWin,
       amount: 1,
     };
-
     const hexEncode = signHexData(data, privateKey);
 
-    console.log("data", data);
+    // console.log("data", data);
     const resAxios = await axios({
       method: "POST",
       url: "https://bcel.la:8083/onepaylotto.php",
@@ -258,12 +280,12 @@ app.post("/reward", async (req, res) => {
       data,
       // validateStatus: () => true,
     });
-    console.log("resAxios.data", resAxios.data);
+    // console.log("resAxios.data", resAxios.data);
     res.json({
-      data: hexEncode,
+      data: resAxios.data,
     });
   } catch (error) {
-    // console.log("error", error.message);
+    console.log("error", error.message);
     res
       .status(500)
       .json({ error: "Internal server error", data: error.message });
