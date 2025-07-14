@@ -89,7 +89,7 @@ class OnePay {
   }
 
   getCode(params, qrcode) {
-    console.table(params);
+    // console.table(params);
     
     if (this.debug) console.log("get code parameters:", params);
 

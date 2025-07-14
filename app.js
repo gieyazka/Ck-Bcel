@@ -77,6 +77,7 @@ app.post("/genQr", async (req, res) => {
       uuid: billId, // เปลี่ยนเป็น bill id จาก lotlink
       invoiceid: iid, // a invoice ID can pay many times OR have many transaction ID
       terminalid: drawId, // งวด ID
+      // amount: 1, // invoice amount
       amount: amount === 0 ? 1 : amount, // invoice amount
       description: remark, // must define as English text
       expiretime: 5, // expire time must be minutes
