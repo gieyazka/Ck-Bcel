@@ -239,7 +239,6 @@ app.post("/reward", async (req, res) => {
     verifyToken(bearerToken, JWT_SECRET);
 
     const body = req.body;
-
     const response = await axios.post(
       `${process.env.CK_BACKEND}/api/invoice/`,
       {
@@ -254,6 +253,7 @@ app.post("/reward", async (req, res) => {
     //   return res.status(400).json({ error: "Invoice is not win" });
     // }
     const sumWin = invoice.totalWin + (invoice.specialWin ?? 0);
+    console.log("sumWin", sumWin);
     const privateKey = process.env.BCEL_Private_key;
     const data = {
       nonce: new Date().getTime(),
@@ -281,7 +281,7 @@ app.post("/reward", async (req, res) => {
       data,
       // validateStatus: () => true,
     });
-    // console.log("resAxios.data", resAxios.data);
+ 
     res.json({
       data: resAxios.data,
     });
