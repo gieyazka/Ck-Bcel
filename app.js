@@ -250,7 +250,13 @@ app.post("/reward", async (req, res) => {
     // if (invoice.is_win === false) {
     //   return res.status(400).json({ error: "Invoice is not win" });
     // }
-    const sumWin = (invoice.totalWin || 0) + (invoice.adjustWinAmount || 0);
+    const sumWin =
+      (invoice.totalWin || 0) +
+      (invoice.adjustWinAmount || 0) +
+      (invoice.endBillWinAmount || 0);
+
+      
+
     // const sumWin = invoice.totalWin + (invoice.specialWin ?? 0);
     // console.log("sumWin", sumWin);
     const privateKey = process.env.BCEL_Private_key;
@@ -286,7 +292,7 @@ app.post("/reward", async (req, res) => {
       data: resAxios.data,
     });
   } catch (error) {
-    console.log("error", error.message);
+    console.log("error reward", error.message);
     res.status(500).json({
       error: "Internal server error",
       data: error.message,
