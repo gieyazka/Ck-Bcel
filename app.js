@@ -148,7 +148,7 @@ app.post("/refund", async (req, res) => {
     const body = req.body;
     const mcid = process.env.MCID;
     const refundId = dayjs().format("YYYYMMDDHHmmss");
-    const refundAmount = 1;
+    const refundAmount = body.refundAmount || 1;
     const uuid = body.uuid;
     const privateKey = process.env.BCEL_Private_key;
     const rawData = mcid + uuid + refundId;
@@ -167,7 +167,7 @@ app.post("/refund", async (req, res) => {
       refundamount: refundAmount,
       signature: base64Data,
     };
-    // console.log(data);
+    console.log(data);
     const resAxios = await axios({
       method: "POST",
       url: "https://bcel.la:8083/onepay/refund.php",
@@ -177,7 +177,7 @@ app.post("/refund", async (req, res) => {
       data: data,
       validateStatus: () => true,
     });
-    // console.log("resAxios.data", resAxios.data);
+    console.log("resAxios.data", resAxios.data);
     res.json({
       data: resAxios.data,
     });
@@ -255,8 +255,6 @@ app.post("/reward", async (req, res) => {
       (invoice.adjustWinAmount || 0) +
       (invoice.endBillWinAmount || 0);
 
-      
-
     // const sumWin = invoice.totalWin + (invoice.specialWin ?? 0);
     // console.log("sumWin", sumWin);
     const privateKey = process.env.BCEL_Private_key;
@@ -326,7 +324,6 @@ app.listen(port, () => {
 
           return;
         } else if (type === "topup") {
-          console.log("res.fccref", res.fccref);
           const callbackUrl = genCallBackTopupTokenSummary(
             invoiceId,
             res.fccref
