@@ -112,8 +112,8 @@ app.post("/genQrTopup", async (req, res) => {
       mcid: MCID,
       subKey: SubscribeKey,
    });
-console.log('data', data)
-console.log('req.data', req.data)
+// console.log('data', data)
+// console.log('req.data', req.data)
    onePay.debug = false;
    const iid = `${lotteryDate}_${invoiceId}_topup`;
    onePay.getCode(
