@@ -34,28 +34,28 @@ var subParams = {
 };
 app.use((req, res, next) => {
    // req.data = req.body
-  //  next();
+   //  next();
 
-    const bearerToken = req.headers["authorization"];
-    if (!bearerToken) {
-       return res.status(403).send("No token provided");
-    }
-    const token = bearerToken.split(" ")[1];
-    jwt.verify(
-       token,
-       SERECT_KEY,
-       {
-          algorithms: ["HS384"],
-       },
-       (err, decoded) => {
-          if (err) {
-             console.error(err);
-             return res.status(401).send("Unauthorized");
-          }
-          req.data = decoded;
-          next();
-       }
-    );
+   const bearerToken = req.headers["authorization"];
+   if (!bearerToken) {
+      return res.status(403).send("No token provided");
+   }
+   const token = bearerToken.split(" ")[1];
+   jwt.verify(
+      token,
+      SERECT_KEY,
+      {
+         algorithms: ["HS384"],
+      },
+      (err, decoded) => {
+         if (err) {
+            console.error(err);
+            return res.status(401).send("Unauthorized");
+         }
+         req.data = decoded;
+         next();
+      }
+   );
 });
 
 app.post("/genQr", async (req, res) => {
@@ -81,7 +81,7 @@ app.post("/genQr", async (req, res) => {
          // FIXME: to real amount
          amount: amount === 0 ? 1 : amount, // invoice amount
          description: remark, // must define as English text
-         expiretime: 5, // expire time must be minutes
+         expiretime: 3, // expire time must be minutes
       },
       function (code) {
          // console.log("code", code);
@@ -112,8 +112,8 @@ app.post("/genQrTopup", async (req, res) => {
       mcid: MCID,
       subKey: SubscribeKey,
    });
-// console.log('data', data)
-// console.log('req.data', req.data)
+   console.log("data", data);
+   console.log("req.data", req.data);
    onePay.debug = false;
    const iid = `${lotteryDate}_${invoiceId}_topup`;
    onePay.getCode(
@@ -155,7 +155,7 @@ app.post("/refund", async (req, res) => {
       const body = req.body;
       const mcid = process.env.MCID;
       const refundId = dayjs().format("YYYYMMDDHHmmss");
-      const refundAmount = 1;
+      const refundAmount = body.refundAmount || 1;
       const uuid = body.uuid;
       const privateKey = process.env.BCEL_Private_key;
       const rawData = mcid + uuid + refundId;
@@ -174,7 +174,7 @@ app.post("/refund", async (req, res) => {
          refundamount: refundAmount,
          signature: base64Data,
       };
-      // console.log(data);
+      console.log(data);
       const resAxios = await axios({
          method: "POST",
          url: "https://bcel.la:8083/onepay/refund.php",
@@ -184,7 +184,7 @@ app.post("/refund", async (req, res) => {
          data: data,
          validateStatus: () => true,
       });
-      // console.log("resAxios.data", resAxios.data);
+      console.log("resAxios.data", resAxios.data);
       res.json({
          data: resAxios.data,
       });
@@ -257,7 +257,12 @@ app.post("/reward", async (req, res) => {
       // if (invoice.is_win === false) {
       //   return res.status(400).json({ error: "Invoice is not win" });
       // }
-      const sumWin = invoice.totalWin;
+      const sumWin = body.amount
+         ? body.amount
+         : (invoice.totalWin || 0) +
+           (invoice.adjustWinAmount || 0) +
+           (invoice.endBillWinAmount || 0);
+
       // const sumWin = invoice.totalWin + (invoice.specialWin ?? 0);
       // console.log("sumWin", sumWin);
       const privateKey = process.env.BCEL_Private_key;
@@ -293,7 +298,7 @@ app.post("/reward", async (req, res) => {
          data: resAxios.data,
       });
    } catch (error) {
-      console.log("error", error.message);
+      console.log("error reward", error.message);
       res.status(500).json({
          error: "Internal server error",
          data: error.message,
@@ -312,7 +317,7 @@ app.listen(port, () => {
 
    onePay.subscribe(subParams, async (res) => {
       try {
-         console.log("res", res);
+         // console.log("res", res);
          if (res.iid) {
             const [lotteryDate, invoiceId, type] = res.iid.split("_");
             if (type === "buyLottery") {
@@ -327,7 +332,6 @@ app.listen(port, () => {
 
                return;
             } else if (type === "topup") {
-               // console.log("res.fccref", res.fccref);
                const callbackUrl = genCallBackTopupTokenSummary(
                   invoiceId,
                   res.fccref
