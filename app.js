@@ -327,7 +327,7 @@ app.listen(port, () => {
 
                return;
             } else if (type === "topup") {
-               console.log("res.fccref", res.fccref);
+               // console.log("res.fccref", res.fccref);
                const callbackUrl = genCallBackTopupTokenSummary(
                   invoiceId,
                   res.fccref
